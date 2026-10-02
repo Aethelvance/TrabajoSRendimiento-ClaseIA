@@ -1,0 +1,27 @@
+# venv
+venv-srendimiento/
+venv*/
+.venv/
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+
+# modelos entrenados (se regeneran con training.train)
+*.pt
+
+# logs servidor diagramas
+*.log
+diagrams/server*.log
+
+# sistema
+.DS_Store
+Thumbs.db
+
+# tooling local (skills / agentes IDE)
+.agents/
+.claude/
+.codex/
+agent/
+skills-lock.json

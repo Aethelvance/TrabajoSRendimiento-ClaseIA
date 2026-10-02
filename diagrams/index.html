@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diagrams - MLP Rendimiento (8080)</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({ startOnLoad: true });</script>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; }
+    pre { background: #f4f4f4; padding: 1rem; border-radius: 8px; overflow-x: auto; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f4f4f4; }
+  </style>
+</head>
+<body>
+  <h1>MLP Rendimiento — PyTorch :8080</h1>
+  <p>Regresión supervisada tabular: <code>deporte, sueno -&gt; rendimiento</code> (600 filas). Modelo MLP <code>2-32-16-1</code>, ReLU, MSELoss, AdamW.</p>
+
+  <div class="card">
+    <h2>1. Regresión supervisada tabular</h2>
+    <div class="mermaid">
+flowchart TD
+    CSV["📄 Rendimiento.csv<br/>600 filas<br/>deporte 0-5h | sueno 3-9h<br/>rendimiento 52-284"]
+    DEF["🎯 Tipo: Regresion supervisada tabular<br/>X 2 numericos -&gt; y continua<br/>NO encoder | NO refuerzo"]
+    SPLIT["✂️ Split 70/15/15<br/>train 420 | val 90 | test 90<br/>stratified NO, shuffle SI"]
+    SCALER["⚖️ StandardScaler<br/>fit solo en train<br/>z = x - mean / std"]
+    TRAIN["🏋️ Train: X_train, y_train"]
+    VAL["🔍 Val: tuning + EarlyStopping"]
+    TEST["🧪 Test: MAE RMSE R2 final"]
+    CSV --> DEF
+    DEF --> SPLIT
+    SPLIT --> SCALER
+    SCALER --> TRAIN
+    SCALER --> VAL
+    SCALER --> TEST
+    NOENC["❌ Encoder = compresion/embeddings<br/>para texto/secuencias, NO 2 columnas"]
+    NORL["❌ Refuerzo = agente + recompensa<br/>sin y etiquetada, NO aplica"]
+    DEF -.-> NOENC
+    DEF -.-> NORL
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2. Arquitectura MLP PyTorch (641 params)</h2>
+    <div class="mermaid">
+flowchart TD
+    IN["🟢 Input 2<br/>deporte_norm, sueno_norm<br/>Tensor float32 shape B,2"]
+    L1["🔵 Linear 2-&gt;32<br/>96 params: 2x32+32<br/>nn.Linear + Kaiming init"]
+    R1["🟡 ReLU 1<br/>ReLU x = max 0,x<br/>32 activaciones"]
+    L2["🔵 Linear 32-&gt;16<br/>528 params: 32x16+16<br/>capa oculta 2"]
+    R2["🟡 ReLU 2<br/>ReLU x = max 0,x<br/>16 activaciones"]
+    OUT["🔴 Output Linear 16-&gt;1<br/>17 params: 16x1+1<br/>SIN activacion, y continua"]
+    TOT["📦 Total 641 params<br/>96+528+17<br/>MLP regresion PyTorch"]
+    LOSS["📉 Loss MSELoss<br/>mean pred-real al cuadrado<br/>reporte MAE RMSE R2"]
+    OPT["⚙️ Optim AdamW<br/>lr 1e-3, wd 1e-4<br/>ReduceLROnPlateau"]
+    IN --> L1
+    L1 --> R1
+    R1 --> L2
+    L2 --> R2
+    R2 --> OUT
+    OUT --> TOT
+    TOT --> LOSS
+    LOSS --> OPT
+    NOTE["💡 Sin ReLU colapsa a lineal<br/>Final lineal porque rendimiento 50-284 no se recorta"]
+    OUT -.-> NOTE
+    </div>
+    <table>
+      <tr><th>Capa</th><th>Tipo</th><th>Neuronas</th><th>Params</th></tr>
+      <tr><td>Input</td><td>Tensor norm.</td><td>2</td><td>0</td></tr>
+      <tr><td>Oculta 1</td><td>Linear + ReLU</td><td>32</td><td>96</td></tr>
+      <tr><td>Oculta 2</td><td>Linear + ReLU</td><td>16</td><td>528</td></tr>
+      <tr><td>Output</td><td>Linear</td><td>1</td><td>17</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>3. Entrenamiento y evaluación</h2>
+    <div class="mermaid">
+flowchart TD
+    DL["📥 DataLoader batch 32<br/>TensorDataset X_norm, y<br/>shuffle train SI"]
+    FWD["➡️ Forward<br/>pred = MLP X<br/>2-&gt;32 ReLU -&gt;16 ReLU -&gt;1"]
+    MSE["📉 MSELoss train<br/>loss = mean pred-real 2<br/>gradiente prop al error"]
+    BWD["⬅️ Backward + AdamW step<br/>loss.backward + optimizer.step<br/>zero_grad cada batch"]
+    VALM["🔍 Val cada epoch<br/>MAE puntos | RMSE | R2<br/>SmoothL1 opcional si picos"]
+    SCHED["⏳ Scheduler + EarlyStopping<br/>ReduceLROnPlateau patience 20<br/>stop patience 50, max 500 epochs"]
+    TESTM["🧪 Test final<br/>MAE RMSE R2 + scatter<br/>real vs pred + curva loss"]
+    SAVE["💾 Guardar model.pt + scaler.pt<br/>para predecir nuevos casos"]
+    BASE["📊 Baseline Ridge lineal<br/>R2 aprox 0.92 esperado<br/>MLP debe igualar o superar"]
+    DL --> FWD
+    FWD --> MSE
+    MSE --> BWD
+    BWD --> VALM
+    VALM --> SCHED
+    SCHED -->|mejora| DL
+    SCHED -->|converge| TESTM
+    TESTM --> SAVE
+    TESTM --> BASE
+    </div>
+    <h3>Decisiones</h3>
+    <ul>
+      <li><b>Loss:</b> MSE para entrenar (suave, penaliza picos), MAE/RMSE/R2 para reportar.</li>
+      <li><b>Optimizador:</b> AdamW lr=1e-3, wd=1e-4. Adaptativo, sin tunear scheduler manual como SGD.</li>
+      <li><b>ReLU:</b> <code>max(0,x)</code>, evita vanishing de sigmoid/tanh, barato.</li>
+    </ul>
+  </div>
+
+  <h2>Archivos</h2>
+  <ul>
+    <li><a href="/01_regresion_supervisada_tabular.mmd">01_regresion_supervisada_tabular.mmd</a></li>
+    <li><a href="/02_arquitectura_mlp_pytorch.mmd">02_arquitectura_mlp_pytorch.mmd</a></li>
+    <li><a href="/03_entrenamiento_evaluacion.mmd">03_entrenamiento_evaluacion.mmd</a></li>
+  </ul>
+</body>
+</html>

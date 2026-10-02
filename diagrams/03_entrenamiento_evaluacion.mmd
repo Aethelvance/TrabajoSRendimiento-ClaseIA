@@ -1,0 +1,28 @@
+flowchart TD
+    DL["📥 DataLoader batch 32<br/>TensorDataset X_norm, y<br/>shuffle train SI"]
+    FWD["➡️ Forward<br/>pred = MLP X<br/>2->32 ReLU ->16 ReLU ->1"]
+    MSE["📉 MSELoss train<br/>loss = mean pred-real 2<br/>gradiente prop al error"]
+    BWD["⬅️ Backward + AdamW step<br/>loss.backward + optimizer.step<br/>zero_grad cada batch"]
+    VALM["🔍 Val cada epoch<br/>MAE puntos | RMSE | R2<br/>SmoothL1 opcional si picos"]
+    SCHED["⏳ Scheduler + EarlyStopping<br/>ReduceLROnPlateau patience 20<br/>stop patience 50, max 500 epochs"]
+    TESTM["🧪 Test final<br/>MAE RMSE R2 + scatter<br/>real vs pred + curva loss"]
+    SAVE["💾 Guardar model.pt + scaler.pt<br/>para predecir nuevos casos"]
+    BASE["📊 Baseline Ridge lineal<br/>R2 aprox 0.92 esperado<br/>MLP debe igualar o superar"]
+
+    DL --> FWD
+    FWD --> MSE
+    MSE --> BWD
+    BWD --> VALM
+    VALM --> SCHED
+    SCHED -->|mejora| DL
+    SCHED -->|converge| TESTM
+    TESTM --> SAVE
+    TESTM --> BASE
+
+    classDef data fill:#90EE90,stroke:#333,stroke-width:2px,color:#0b3d0b
+    classDef train fill:#87CEEB,stroke:#333,stroke-width:2px,color:#0b2a3d
+    classDef eval fill:#FFD700,stroke:#333,stroke-width:2px,color:#000
+    classDef save fill:#E6E6FA,stroke:#333,stroke-width:2px,color:#1a1a4d
+    class DL,FWD,MSE,BWD train
+    class VALM,SCHED,TESTM eval
+    class SAVE,BASE save

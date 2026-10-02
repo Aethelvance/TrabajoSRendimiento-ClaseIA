@@ -1,0 +1,28 @@
+flowchart TD
+    CSV["📄 Rendimiento.csv<br/>600 filas<br/>deporte 0-5h | sueno 3-9h<br/>rendimiento 52-284"]
+    DEF["🎯 Tipo: Regresion supervisada tabular<br/>X 2 numericos -> y continua<br/>NO encoder | NO refuerzo"]
+    SPLIT["✂️ Split 70/15/15<br/>train 420 | val 90 | test 90<br/>stratified NO, shuffle SI"]
+    SCALER["⚖️ StandardScaler<br/>fit solo en train<br/>z = x - mean / std"]
+    TRAIN["🏋️ Train: X_train, y_train"]
+    VAL["🔍 Val: tuning + EarlyStopping"]
+    TEST["🧪 Test: MAE RMSE R2 final"]
+
+    CSV --> DEF
+    DEF --> SPLIT
+    SPLIT --> SCALER
+    SCALER --> TRAIN
+    SCALER --> VAL
+    SCALER --> TEST
+
+    NOENC["❌ Encoder = compresion/embeddings<br/>para texto/secuencias, NO 2 columnas"]
+    NORL["❌ Refuerzo = agente + recompensa<br/>sin y etiquetada, NO aplica"]
+
+    DEF -.-> NOENC
+    DEF -.-> NORL
+
+    classDef primary fill:#90EE90,stroke:#333,stroke-width:2px,color:#0b3d0b
+    classDef secondary fill:#87CEEB,stroke:#333,stroke-width:2px,color:#0b2a3d
+    classDef warn fill:#FFB6C1,stroke:#DC143C,stroke-width:2px,color:#000
+    class CSV,DEF,SPLIT,SCALER primary
+    class TRAIN,VAL,TEST secondary
+    class NOENC,NORL warn
