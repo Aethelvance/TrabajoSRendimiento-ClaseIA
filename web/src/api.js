@@ -1,4 +1,5 @@
-const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8081";
+// Sin VITE_API_URL usa mismo origen (/api -> nginx proxy). VITE_API_URL solo para `npm run dev`.
+const BASE = import.meta.env.VITE_API_URL || "/api";
 
 async function json(res) {
   if (!res.ok) {
