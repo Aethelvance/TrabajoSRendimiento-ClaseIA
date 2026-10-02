@@ -8,6 +8,10 @@ __pycache__/
 *.pyc
 *.pyo
 
+# web
+web/node_modules/
+web/dist/
+
 # checkpoints intermedios (se regeneran con training.train)
 # best_model.pt y scaler.pt SI se versionan
 models/checkpoints/*.pt

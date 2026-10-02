@@ -107,11 +107,78 @@ flowchart TD
     </ul>
   </div>
 
+  <div class="card">
+    <h2>4. Arquitectura API</h2>
+    <div class="mermaid">
+flowchart TD
+    CLI["👤 Cliente<br/>POST predict | GET health metrics<br/>JSON por HTTP :8000"]
+    API["🌐 FastAPI api/main.py<br/>uvicorn main:app --port 8000<br/>schemas.py valida pydantic"]
+    EP_PRED["➡️ POST /predict<br/>body deporte 0-5, sueno 3-9<br/>resp rendimiento 200 | 422"]
+    EP_HEALTH["💚 GET /health<br/>status ok + model_loaded<br/>liveness del servicio"]
+    EP_METRICS["📊 GET /metrics<br/>MAE 4.33 RMSE 5.22 R2 0.9884<br/>params 641 arch 2-32-16-1"]
+    MOD["📦 models solo lectura<br/>best_model.pt 5.6KB<br/>scaler.pt 2.3KB"]
+    MLP["🧠 MLPRegressor 2-32-16-1<br/>cargado 1 vez en startup<br/>eval + no_grad en inferencia"]
+    NOTRAIN["❌ training fuera de inferencia<br/>train.py dataset.py NO se importan<br/>API nunca re-entrena"]
+    CLI --> API
+    API --> EP_PRED
+    API --> EP_HEALTH
+    API --> EP_METRICS
+    EP_PRED --> MOD
+    MOD --> MLP
+    MLP --> EP_PRED
+    API -.-> NOTRAIN
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>5. Flujo POST /predict</h2>
+    <div class="mermaid">
+flowchart TD
+    REQ["📥 POST /predict<br/>deporte 3.0, sueno 6.0<br/>JSON 2 campos float"]
+    VAL["✅ Valida pydantic<br/>deporte 0-5 | sueno 3-9<br/>tipo float requerido"]
+    ERR["❌ 422 Unprocessable<br/>fuera de rango o tipo mal<br/>ej deporte -1 o sueno texto"]
+    NORM["⚖️ Normaliza<br/>z = x - mean / std<br/>con scaler.pt de train"]
+    FWD["🧠 Forward MLP<br/>2-32 ReLU -16 ReLU -1<br/>torch.no_grad, CPU"]
+    DENORM["📤 Desnormaliza<br/>y = pred_zt * y_std + y_mean<br/>rendimiento continuo"]
+    RESP["📦 200 OK<br/>rendimiento 171.9<br/>ej 1h/4h 89.3 | 4.5h/8h 249.4"]
+    REQ --> VAL
+    VAL -->|ok| NORM
+    VAL -->|falla| ERR
+    NORM --> FWD
+    FWD --> DENORM
+    DENORM --> RESP
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>6. Health, metrics y despliegue</h2>
+    <div class="mermaid">
+flowchart TD
+    BOOT["🚀 Startup uvicorn<br/>main:app puerto 8000<br/>1 solo worker CPU"]
+    LOAD["📂 Carga modelo 1 vez<br/>load_state_dict best_model.pt<br/>map_location cpu + eval"]
+    FLAG["🚩 model_loaded bool<br/>true si .pt ok<br/>false si falta archivo"]
+    H["💚 GET /health<br/>status ok + model_loaded<br/>200 siempre si API viva"]
+    M["📊 GET /metrics fijo<br/>MAE 4.33 RMSE 5.22 R2 0.9884<br/>de training.evaluate en test"]
+    SEQ["🔁 Secuencia por request<br/>cliente -API -modelo<br/>sin recargar .pt nunca"]
+    BOOT --> LOAD
+    LOAD --> FLAG
+    FLAG --> H
+    FLAG --> M
+    H --> SEQ
+    M --> SEQ
+    NOTE["💡 metrics NO recalcula<br/>son constantes del test 90 filas<br/>predict usa no_grad siempre"]
+    M -.-> NOTE
+    </div>
+  </div>
+
   <h2>Archivos</h2>
   <ul>
     <li><a href="/01_regresion_supervisada_tabular.mmd">01_regresion_supervisada_tabular.mmd</a></li>
     <li><a href="/02_arquitectura_mlp_pytorch.mmd">02_arquitectura_mlp_pytorch.mmd</a></li>
     <li><a href="/03_entrenamiento_evaluacion.mmd">03_entrenamiento_evaluacion.mmd</a></li>
+    <li><a href="/04_arquitectura_api.mmd">04_arquitectura_api.mmd</a></li>
+    <li><a href="/05_flujo_predict.mmd">05_flujo_predict.mmd</a></li>
+    <li><a href="/06_health_metrics_despliegue.mmd">06_health_metrics_despliegue.mmd</a></li>
   </ul>
 </body>
 </html>

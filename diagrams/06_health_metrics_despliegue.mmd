@@ -1,0 +1,25 @@
+flowchart TD
+    BOOT["🚀 Startup uvicorn<br/>main:app puerto 8000<br/>1 solo worker CPU"]
+    LOAD["📂 Carga modelo 1 vez<br/>load_state_dict best_model.pt<br/>map_location cpu + eval"]
+    FLAG["🚩 model_loaded bool<br/>true si .pt ok<br/>false si falta archivo"]
+    H["💚 GET /health<br/>status ok + model_loaded<br/>200 siempre si API viva"]
+    M["📊 GET /metrics fijo<br/>MAE 4.33 RMSE 5.22 R2 0.9884<br/>de training.evaluate en test"]
+    SEQ["🔁 Secuencia por request<br/>cliente -API -modelo<br/>sin recargar .pt nunca"]
+
+    BOOT --> LOAD
+    LOAD --> FLAG
+    FLAG --> H
+    FLAG --> M
+    H --> SEQ
+    M --> SEQ
+
+    NOTE["💡 metrics NO recalcula<br/>son Constantes del test 90 filas<br/>predict usa no_grad siempre"]
+
+    M -.-> NOTE
+
+    classDef boot fill:#90EE90,stroke:#333,stroke-width:2px,color:#0b3d0b
+    classDef api fill:#87CEEB,stroke:#333,stroke-width:2px,color:#0b2a3d
+    classDef meta fill:#E6E6FA,stroke:#333,stroke-width:2px,color:#1a1a4d
+    class BOOT,LOAD,FLAG boot
+    class H,M,SEQ api
+    class NOTE meta

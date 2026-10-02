@@ -1,0 +1,24 @@
+flowchart TD
+    REQ["📥 POST /predict<br/>deporte 3.0, sueno 6.0<br/>JSON 2 campos float"]
+    VAL["✅ Valida pydantic<br/>deporte 0-5 | sueno 3-9<br/>tipo float requerido"]
+    ERR["❌ 422 Unprocessable<br/>fuera de rango o tipo mal<br/>ej deporte -1 o sueno texto"]
+    NORM["⚖️ Normaliza<br/>z = x - mean / std<br/>con scaler.pt de train"]
+    FWD["🧠 Forward MLP<br/>2-32 ReLU -16 ReLU -1<br/>torch.no_grad, CPU"]
+    DENORM["📤 Desnormaliza<br/>y = pred_zt * y_std + y_mean<br/>rendimiento continuo"]
+    RESP["📦 200 OK<br/>rendimiento 171.9<br/>ej 1h/4h 89.3 | 4.5h/8h 249.4"]
+
+    REQ --> VAL
+    VAL -->|ok| NORM
+    VAL -->|falla| ERR
+    NORM --> FWD
+    FWD --> DENORM
+    DENORM --> RESP
+
+    classDef req fill:#90EE90,stroke:#333,stroke-width:2px,color:#0b3d0b
+    classDef proc fill:#87CEEB,stroke:#333,stroke-width:2px,color:#0b2a3d
+    classDef err fill:#FFB6C1,stroke:#DC143C,stroke-width:2px,color:#000
+    classDef ok fill:#FFD700,stroke:#333,stroke-width:2px,color:#000
+    class REQ req
+    class VAL,NORM,FWD,DENORM proc
+    class ERR err
+    class RESP ok

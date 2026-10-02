@@ -1,0 +1,14 @@
+venv-srendimiento/
+venv*/
+.venv/
+web/node_modules/
+web/dist/
+__pycache__/
+*.pyc
+.git/
+models/checkpoints/
+*.log
+.agents/
+.claude/
+.codex/
+agent/

@@ -1,0 +1,27 @@
+flowchart TD
+    CLI["👤 Cliente<br/>POST predict | GET health metrics<br/>JSON por HTTP :8000"]
+    API["🌐 FastAPI api/main.py<br/>uvicorn main:app --port 8000<br/>schemas.py valida pydantic"]
+    EP_PRED["➡️ POST /predict<br/>body deporte 0-5, sueno 3-9<br/>resp rendimiento 200 | 422"]
+    EP_HEALTH["💚 GET /health<br/>status ok + model_loaded<br/>liveness del servicio"]
+    EP_METRICS["📊 GET /metrics<br/>MAE 4.33 RMSE 5.22 R2 0.9884<br/>params 641 arch 2-32-16-1"]
+    MOD["📦 models solo lectura<br/>best_model.pt 5.6KB<br/>scaler.pt 2.3KB"]
+    MLP["🧠 MLPRegressor 2-32-16-1<br/>cargado 1 vez en startup<br/>eval + no_grad en inferencia"]
+    NOTRAIN["❌ training fuera de inferencia<br/>train.py dataset.py NO se importan<br/>API nunca re-entrena"]
+
+    CLI --> API
+    API --> EP_PRED
+    API --> EP_HEALTH
+    API --> EP_METRICS
+    EP_PRED --> MOD
+    MOD --> MLP
+    MLP --> EP_PRED
+    API -.-> NOTRAIN
+
+    classDef client fill:#90EE90,stroke:#333,stroke-width:2px,color:#0b3d0b
+    classDef api fill:#87CEEB,stroke:#333,stroke-width:2px,color:#0b2a3d
+    classDef model fill:#E6E6FA,stroke:#333,stroke-width:2px,color:#1a1a4d
+    classDef warn fill:#FFB6C1,stroke:#DC143C,stroke-width:2px,color:#000
+    class CLI client
+    class API,EP_PRED,EP_HEALTH,EP_METRICS api
+    class MOD,MLP model
+    class NOTRAIN warn
