@@ -16,7 +16,7 @@ def evaluate():
     pred = pred_norm * d["y_std"] + d["y_mean"]
     real = d["y_test_raw"]
     mae = (pred - real).abs().mean().item()
-    rmse = (((pred - real) ** 2).mean().sqrt().item()
+    rmse = float((((pred - real) ** 2).mean()).sqrt().item())
     ss_res = ((real - pred) ** 2).sum()
     ss_tot = ((real - real.mean()) ** 2).sum()
     r2 = (1 - ss_res / ss_tot).item()

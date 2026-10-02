@@ -8,8 +8,9 @@ __pycache__/
 *.pyc
 *.pyo
 
-# modelos entrenados (se regeneran con training.train)
-*.pt
+# checkpoints intermedios (se regeneran con training.train)
+# best_model.pt y scaler.pt SI se versionan
+models/checkpoints/*.pt
 
 # logs servidor diagramas
 *.log

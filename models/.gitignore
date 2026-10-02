@@ -1,3 +1,2 @@
+# solo checkpoints intermedios ignorados; best_model.pt y scaler.pt se versionan
 checkpoints/*.pt
-best_model.pt
-scaler.pt

@@ -26,26 +26,58 @@ def train():
     print(f"params: {count_params(model)}")  # esperado 641
 
     loss_fn = nn.MSELoss()  # entrena MSE, reporta MAE/RMSE/R2
-    opt = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
-    sched = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, patience=PATIENCE_LR, factor=0.5)
+
+    # AdamW manual: torch.optim esta roto en torch 2.14.1+cpu/cp314
+    # (torch._dynamo NP_SUPPORTED_MODULES). Mismas cuentas que AdamW lr=1e-3.
+    params = [p for p in model.parameters() if p.requires_grad]
+    m_buf = [torch.zeros_like(p) for p in params]
+    v_buf = [torch.zeros_like(p) for p in params]
+    b1, b2, eps = 0.9, 0.999, 1e-8
+    lr = LR
+    step = 0
+
+    @torch.no_grad()
+    def adamw_step():
+        nonlocal step
+        step += 1
+        bc1 = 1.0 - b1 ** step
+        bc2 = 1.0 - b2 ** step
+        for p, m, v in zip(params, m_buf, v_buf):
+            if p.grad is None:
+                continue
+            g = p.grad
+            m.mul_(b1).add_(g, alpha=1.0 - b1)
+            v.mul_(b2).addcmul_(g, g, value=1.0 - b2)
+            m_hat = m / bc1
+            v_hat = v / bc2
+            p.mul_(1.0 - lr * WEIGHT_DECAY)  # decoupled weight decay
+            p.addcdiv_(m_hat, v_hat.sqrt() + eps, value=-lr)
 
     best_val = float("inf")
     bad_epochs = 0
+    bad_lr = 0
 
     for epoch in range(1, MAX_EPOCHS + 1):
         model.train()
         for xb, yb in train_loader:
-            opt.zero_grad()
+            model.zero_grad()
             loss = loss_fn(model(xb), yb)
             loss.backward()
-            opt.step()
+            adamw_step()
 
         # val
         model.eval()
         with torch.no_grad():
             v = sum(loss_fn(model(xb), yb).item() * len(xb) for xb, yb in val_loader)
             v /= len(val_loader.dataset)
-        sched.step(v)
+        # ReduceLROnPlateau manual: halve lr si no mejora en PATIENCE_LR
+        if v < best_val:
+            bad_lr = 0
+        else:
+            bad_lr += 1
+            if bad_lr >= PATIENCE_LR:
+                lr *= 0.5
+                bad_lr = 0
 
         # checkpoint cada 50 epochs
         if epoch % 50 == 0:
@@ -61,7 +93,7 @@ def train():
             bad_epochs += 1
 
         if epoch % 50 == 0 or epoch == 1:
-            print(f"epoch {epoch:3d} train_loss={loss.item():.4f} val_mse={v:.4f} lr={opt.param_groups[0]['lr']:.1e}")
+            print(f"epoch {epoch:3d} train_loss={loss.item():.4f} val_mse={v:.4f} lr={lr:.1e}")
 
         if bad_epochs >= PATIENCE_EARLY:
             print(f"EarlyStopping en epoch {epoch}, best_val={best_val:.4f}")
